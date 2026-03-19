@@ -36,11 +36,23 @@ jobs:
 
       - name: Build macOS (debug)
         working-directory: app
-        run: flutter build macos --debug --no-codesign
+        run: |
+          flutter build macos --debug \
+            --dart-define=FLUTTER_XCODE_CODE_SIGNING_ALLOWED=NO \
+            || true
+          xcodebuild \
+            -workspace macos/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -derivedDataPath build/macos_derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            build
 
       - name: Zip app bundle
         run: |
-          cd app/build/macos/Build/Products/Debug
+          cd app/build/macos_derived/Build/Products/Debug
           zip -r ../../../../../LocalSend-macos-debug.zip LocalSend.app
 
       - name: Upload macOS app
