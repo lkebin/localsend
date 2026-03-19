@@ -1,0 +1,47 @@
+name: Compile macOS
+
+on:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.35.6"
+  RUST_VERSION: "1.84.1"
+
+jobs:
+  build_macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: ${{ env.RUST_VERSION }}
+
+      - name: Dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build macOS (debug)
+        working-directory: app
+        run: flutter build macos --debug
+
+      - name: Zip app bundle
+        run: |
+          cd app/build/macos/Build/Products/Debug
+          zip -r ../../../../../LocalSend-macos-debug.zip LocalSend.app
+
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v6
+        with:
+          name: macos-debug-result
+          path: app/LocalSend-macos-debug.zip
