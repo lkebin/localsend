@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/services.dart';
 import 'package:localsend_app/util/native/content_uri_helper.dart';
@@ -22,7 +24,9 @@ Future<PickDirectoryResult?> pickDirectoryAndroid() async {
 
   return PickDirectoryResultMapper.fromJson({
     'directoryUri': result['directoryUri'],
-    'files': (result['files'] as List).map((e) => FileInfoMapper.fromJson((e as Map).cast<String, dynamic>())).toList(),
+    'files': (result['files'] as List)
+        .map((e) => FileInfoMapper.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
   });
 }
 
@@ -37,7 +41,9 @@ Future<List<FileInfo>?> pickFilesAndroid() async {
     return null;
   }
 
-  return result.map((e) => FileInfoMapper.fromJson((e as Map).cast<String, dynamic>())).toList();
+  return result
+      .map((e) => FileInfoMapper.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
 }
 
 Future<bool> getSystemAnimationsStatusAndroid() async {
@@ -78,13 +84,9 @@ Future<void> createMissingDirectoriesAndroid({
   }
 }
 
-Future<void> openContentUri({
-  required String uri,
-}) async {
+Future<void> openContentUri({required String uri}) async {
   _logger.info('Opening content URI: $uri');
-  await _methodChannel.invokeMethod('openContentUri', {
-    'uri': uri,
-  });
+  await _methodChannel.invokeMethod('openContentUri', {'uri': uri});
 }
 
 Future<void> openGallery() async {
@@ -92,15 +94,58 @@ Future<void> openGallery() async {
   await _methodChannel.invokeMethod('openGallery');
 }
 
+Future<void> startBackgroundService() async {
+  _logger.info('Starting background service');
+  await _methodChannel.invokeMethod('startBackgroundService');
+}
+
+Future<void> stopBackgroundService() async {
+  _logger.info('Stopping background service');
+  await _methodChannel.invokeMethod('stopBackgroundService');
+}
+
+// --- Receive-request notification ---
+
+/// Stream that emits `"accept"` or `"decline"` when the user taps a
+/// notification action button. Each event is for a specific [sessionId].
+final _notificationActionController =
+    StreamController<({String action, String sessionId})>.broadcast();
+Stream<({String action, String sessionId})> get notificationActionStream =>
+    _notificationActionController.stream;
+
+/// Must be called once to wire up the MethodChannel → Dart stream.
+void setupAndroidMethodCallHandler() {
+  _methodChannel.setMethodCallHandler((call) async {
+    if (call.method == 'onNotificationAction') {
+      final args = call.arguments as Map;
+      final action = args['action'] as String;
+      final sessionId = args['sessionId'] as String;
+      _notificationActionController.add((action: action, sessionId: sessionId));
+    }
+  });
+}
+
+/// Shows a system notification asking the user to accept or decline an
+/// incoming file request.
+Future<void> showReceiveNotificationAndroid({
+  required String sessionId,
+  required String senderAlias,
+  required int fileCount,
+}) async {
+  _logger.info('Showing receive notification for session $sessionId');
+  await _methodChannel.invokeMethod('showReceiveNotification', {
+    'sessionId': sessionId,
+    'senderAlias': senderAlias,
+    'fileCount': fileCount,
+  });
+}
+
 @MappableClass()
 class PickDirectoryResult with PickDirectoryResultMappable {
   final String directoryUri;
   final List<FileInfo> files;
 
-  PickDirectoryResult({
-    required this.directoryUri,
-    required this.files,
-  });
+  PickDirectoryResult({required this.directoryUri, required this.files});
 }
 
 @MappableClass()

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -21,6 +22,7 @@ private const val REQUEST_CODE_PICK_FILE = 3
 
 class MainActivity : FlutterActivity() {
     private var pendingResult: MethodChannel.Result? = null
+    private var methodChannel: MethodChannel? = null
 
     // Overriding the static methods we need from the Java class, as described
     // in the documentation of `FlutterActivity.NewEngineIntentBuilder`
@@ -36,10 +38,12 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(
+        val channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL
-        ).setMethodCallHandler { call, result ->
+        )
+        methodChannel = channel
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "pickDirectory" -> {
                     pendingResult = result
@@ -72,9 +76,42 @@ class MainActivity : FlutterActivity() {
                     result.success(isAnimationsEnabled())
                 }
 
+                "startBackgroundService" -> {
+                    val intent = Intent(this, LocalSendForegroundService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                    result.success(null)
+                }
+
+                "stopBackgroundService" -> {
+                    stopService(Intent(this, LocalSendForegroundService::class.java))
+                    result.success(null)
+                }
+
+                "showReceiveNotification" -> {
+                    val sessionId = call.argument<String>("sessionId") ?: return@setMethodCallHandler result.error("INVALID_ARG", "sessionId missing", null)
+                    val senderAlias = call.argument<String>("senderAlias") ?: return@setMethodCallHandler result.error("INVALID_ARG", "senderAlias missing", null)
+                    val fileCount = call.argument<Int>("fileCount") ?: return@setMethodCallHandler result.error("INVALID_ARG", "fileCount missing", null)
+                    showReceiveRequestNotification(this, sessionId, senderAlias, fileCount)
+                    result.success(null)
+                }
+
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val action = intent.getStringExtra("action") ?: return
+        val sessionId = intent.getStringExtra(EXTRA_SESSION_ID) ?: return
+        methodChannel?.invokeMethod(
+            "onNotificationAction",
+            mapOf("action" to action, "sessionId" to sessionId)
+        )
     }
 
     private fun isAnimationsEnabled() : Boolean {

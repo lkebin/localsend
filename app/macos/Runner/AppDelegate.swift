@@ -3,6 +3,7 @@ import FlutterMacOS
 import Defaults
 import DockProgress
 import LaunchAtLogin
+import UserNotifications
 import bitsdojo_window_macos
 
 enum DockIcon: CaseIterable {
@@ -41,6 +42,11 @@ class AppDelegate: FlutterAppDelegate {
         isLaunchedAsLoginItem = LaunchAtLogin.wasLaunchedAtLogin
         
         restoreDestinationFolderAccess()
+        
+        // Request permission to show notifications
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
     
     override func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -191,6 +197,12 @@ class AppDelegate: FlutterAppDelegate {
         case "openFirewallSettings":
             openFirewallSettings()
             result(nil)
+        case "showReceiveNotification":
+            let args = call.arguments as! [String: Any]
+            let senderAlias = args["senderAlias"] as! String
+            let fileCount = args["fileCount"] as! Int
+            showReceiveNotification(senderAlias: senderAlias, fileCount: fileCount)
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -264,5 +276,32 @@ class AppDelegate: FlutterAppDelegate {
     @objc func handleSendTextService(_ pasteboard: NSPasteboard, userData: String, error: NSErrorPointer) {
         guard let string = pasteboard.string(forType: .string) else { return }
         Defaults[.pendingStrings].append(string)
+    }
+    
+    private func showReceiveNotification(senderAlias: String, fileCount: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = NSLocalizedString("Incoming files", comment: "")
+        content.body = fileCount == 1
+            ? "\(senderAlias) wants to send you a file"
+            : "\(senderAlias) wants to send you \(fileCount) files"
+        content.sound = .default
+        
+        let request = UNNotificationRequest(
+            identifier: "localsend.receive.\(UUID().uuidString)",
+            content: content,
+            trigger: nil  // deliver immediately
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+}
+
+// Allow notifications to appear even when the app is in the foreground.
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }

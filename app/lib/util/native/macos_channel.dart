@@ -58,19 +58,36 @@ Future<void> openFirewallSettings() async {
   await _methodChannel.invokeMethod('openFirewallSettings');
 }
 
+/// Shows a macOS `UNUserNotificationCenter` notification informing the user
+/// that a file transfer request has arrived.  The user accepts or declines
+/// in the app window after tapping the notification.
+Future<void> showReceiveNotificationMacOs({
+  required String senderAlias,
+  required int fileCount,
+}) async {
+  await _methodChannel.invokeMethod('showReceiveNotification', {
+    'senderAlias': senderAlias,
+    'fileCount': fileCount,
+  });
+}
+
 // This happens:
 /// - on macOS when text is dropped onto the app Dock icon
 /// - on macOS when text is dropped onto the app menu bar icon
 /// - on macOS when text\web link are shared to the app using the share extension (i.e. the system share menu)
-final _pendingFilesStreamController = StreamController<List<String>>.broadcast();
-Stream<List<String>> get pendingFilesStream => _pendingFilesStreamController.stream;
+final _pendingFilesStreamController =
+    StreamController<List<String>>.broadcast();
+Stream<List<String>> get pendingFilesStream =>
+    _pendingFilesStreamController.stream;
 
 /// This happens:
 /// - on macOS when text is dropped onto the app Dock icon
 /// - on macOS when text is dropped onto the app menu bar icon
 /// - on macOS when text\web link are shared to the app using the share extension (i.e. the system share menu)
-final _pendingStringsStreamController = StreamController<List<String>>.broadcast();
-Stream<List<String>> get pendingStringsStream => _pendingStringsStreamController.stream;
+final _pendingStringsStreamController =
+    StreamController<List<String>>.broadcast();
+Stream<List<String>> get pendingStringsStream =>
+    _pendingStringsStreamController.stream;
 
 /// Sets up the method call handler.
 /// Any call from swift native code is dropped until this method is called.
@@ -78,10 +95,14 @@ Future<void> setupMethodCallHandler() async {
   _methodChannel.setMethodCallHandler((call) async {
     switch (call.method) {
       case 'onPendingFiles':
-        _pendingFilesStreamController.add((call.arguments as List).cast<String>());
+        _pendingFilesStreamController.add(
+          (call.arguments as List).cast<String>(),
+        );
         break;
       case 'onPendingStrings':
-        _pendingStringsStreamController.add((call.arguments as List).cast<String>());
+        _pendingStringsStreamController.add(
+          (call.arguments as List).cast<String>(),
+        );
         break;
       case 'showLocalSendFromMenuBar':
         await showFromTray();
