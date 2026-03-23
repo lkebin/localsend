@@ -227,6 +227,11 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     }
   }
 
+  // Auto-start Android foreground service if background mode was previously enabled
+  if (checkPlatform([TargetPlatform.android]) && ref.read(settingsProvider).androidBackgroundMode) {
+    await startBackgroundService();
+  }
+
   try {
     ref
         .redux(nearbyDevicesProvider)

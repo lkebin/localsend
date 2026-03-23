@@ -14,10 +14,6 @@ import 'package:refena_flutter/refena_flutter.dart';
 /// If [forceLegacy] is true, then the http-based discovery runs in parallel.
 /// Otherwise, it runs after a delay of 1 second and only if no devices has been found.
 class StartSmartScan extends AsyncGlobalAction {
-  /// Maximum number of interfaces to scan.
-  /// If there are more interfaces, the first ones will be used or the user needs to select one.
-  static const maxInterfaces = 3;
-
   final bool forceLegacy;
 
   StartSmartScan({required this.forceLegacy});
@@ -43,7 +39,7 @@ class StartSmartScan extends AsyncGlobalAction {
     final stillEmpty = ref.read(nearbyDevicesProvider).devices.isEmpty;
     final stillInSendTab = ref.read(homePageControllerProvider).currentTab == HomeTab.send;
     if (forceLegacy || (stillEmpty && stillInSendTab)) {
-      final networkInterfaces = ref.read(localIpProvider).localIps.take(maxInterfaces).toList();
+      final networkInterfaces = ref.read(localIpProvider).localIps;
       if (networkInterfaces.isNotEmpty) {
         await dispatchAsync(StartLegacySubnetScan(subnets: networkInterfaces));
       }

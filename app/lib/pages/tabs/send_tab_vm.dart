@@ -154,7 +154,7 @@ final sendTabVmProvider = ViewProvider((ref) {
           );
     },
     onTapDeviceMultiSend: (context, device) async {
-      final session = ref.read(sendProvider).values.firstWhereOrNull((s) => s.target.ip == device.ip);
+      final session = ref.read(sendProvider).values.firstWhereOrNull((s) => s.target.fingerprint == device.fingerprint);
       if (session != null) {
         if (session.status == SessionStatus.waiting) {
           ref.notifier(sendProvider).setBackground(session.sessionId, false);
